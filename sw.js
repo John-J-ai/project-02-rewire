@@ -1,4 +1,4 @@
-const CACHE = "rewire-v1.2";
+const CACHE = "rewire-v1.4";
 const ASSETS = [
   "./",
   "./index.html",
@@ -23,6 +23,29 @@ self.addEventListener("activate", event => {
         keys.filter(key => key !== CACHE).map(key => caches.delete(key))
       ))
       .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("periodicsync", event => {
+  if (event.tag === "rewire-daily-reminder") {
+    event.waitUntil(
+      self.registration.showNotification("反骨 REWIRE · 今日驯化提醒", {
+        body: "打开应用完成今天的主动搜索、完播互动与负反馈任务。",
+        icon: "./icon-192.png",
+        tag: "rewire-daily-reminder",
+        data: { url: "./index.html" }
+      })
+    );
+  }
+});
+
+self.addEventListener("notificationclick", event => {
+  event.notification.close();
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => {
+      const existing = list.find(client => client.url.includes("index.html"));
+      return existing ? existing.focus() : clients.openWindow("./index.html");
+    })
   );
 });
 

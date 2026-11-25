@@ -199,6 +199,16 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
 .import-dim .bar{height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden}
 .import-dim .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);border-radius:5px}
 .import-dim .val{text-align:right;font-family:ui-monospace,monospace;color:var(--muted)}
+.source-list{margin-top:12px;border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:var(--surface-2)}
+.source-list summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--accent)}
+.source-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--border);font-size:12px}
+.source-row:first-of-type{border-top:0;margin-top:8px}
+.source-row .platform{width:64px;flex:0 0 auto;font-weight:700}
+.source-row .path{flex:1;color:var(--muted)}
+.reminder-grid{display:grid;grid-template-columns:160px 1fr;gap:14px;align-items:center;margin:14px 0}
+.reminder-channels{display:flex;gap:8px;flex-wrap:wrap}
+.reminder-channels label{display:flex;align-items:center;gap:5px;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:8px;cursor:pointer}
+.reminder-channels input{accent-color:var(--accent)}
 
 /* ---------- shield ---------- */
 .shield-item{display:flex;flex-wrap:wrap;gap:12px;padding:12px 0;border-top:1px solid var(--border)}
@@ -232,7 +242,9 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
   .nav-btn{white-space:nowrap;width:auto}
   .nav-title,.side-foot{display:none}
   .main{padding:20px 16px 60px}
-  .g2,.g3,.g4,.slider-grid,.preset-grid,.stat-row,.metric-grid{grid-template-columns:1fr}
+  .g2,.g3,.g4,.slider-grid,.preset-grid,.stat-row,.metric-grid,.reminder-grid{grid-template-columns:1fr}
+  .source-row{flex-wrap:wrap}
+  .source-row .platform{width:auto}
   h1{font-size:23px}
 }
 </style>
@@ -242,7 +254,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">反</div>
-      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.3</div></div>
+      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.4</div></div>
     </div>
     <div class="nav-title">工作台</div>
     <nav class="nav" id="nav">
@@ -335,6 +347,10 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
           <button class="btn sm" id="btn-demo-import">用示例数据试一下</button>
           <button class="btn ghost sm" id="btn-clear-import">清除预览</button>
         </div>
+        <details class="source-list">
+          <summary>官方数据从哪拿？点开看 10 个渠道与路径</summary>
+          <div id="source-list"></div>
+        </details>
         <div id="import-result" style="margin-top:14px"></div>
       </div>
 
@@ -387,6 +403,27 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
       </div>
       <div id="plan-list"></div>
       <div class="note">打卡状态保存在本地。计划按当前画像与目标画像的差值生成；改完画像后记得重新生成。</div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>每日提醒</h2><label class="pill"><input type="checkbox" id="reminder-toggle" style="margin-right:5px;accent-color:var(--accent)">开启（默认关闭）</label></div>
+        <p class="small muted">四种渠道任选，全部可单独使用。系统通知需授权，页面关闭后仅「已安装的 PWA + 支持后台同步的浏览器」能收到；<b>日历 .ics 最稳</b>，推荐至少勾这一个。</p>
+        <div class="reminder-grid">
+          <label class="small">提醒时间<input type="time" id="reminder-time" style="display:block;margin-top:5px;padding:5px 8px;border:1px solid var(--border);border-radius:8px;background:var(--surface)"></label>
+          <div class="reminder-channels">
+            <label><input type="checkbox" data-channel="notification">系统通知</label>
+            <label><input type="checkbox" data-channel="calendar">日历 .ics</label>
+            <label><input type="checkbox" data-channel="email">邮件草稿</label>
+            <label><input type="checkbox" data-channel="clipboard">复制文案</label>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn primary sm" id="btn-test-reminder">发送测试提醒</button>
+          <button class="btn sm" id="btn-download-ics">下载日历</button>
+          <button class="btn sm" id="btn-mail-reminder">邮件草稿</button>
+          <button class="btn sm" id="btn-copy-reminder">复制文案</button>
+        </div>
+        <div id="reminder-status" class="small muted" style="margin-top:10px"></div>
+      </div>
     </section>
 
     <!-- ============ EFFECT ============ -->
@@ -554,6 +591,19 @@ const IMPORT_LEXICON = {
   study:["学习","考研","英语","单词","论文","笔记","番茄钟","复习","公开课","课程","做题","考试","记忆","效率","自习","study","exam","notes","course","language","paper","learning"]
 };
 
+const DATA_SOURCES = [
+  {p:"Google",path:"takeout.google.com → 勾选「我的活动」「YouTube 和 YouTube Music」→ 创建导出 → 解压 ZIP",url:"https://takeout.google.com/"},
+  {p:"YouTube",path:"Takeout → YouTube and YouTube Music → history/watch-history.json 或 watch-history.html；搜索历史为 search-history.json"},
+  {p:"TikTok",path:"设置与隐私 → 隐私 → 下载您的数据 → 请求 JSON 格式导出"},
+  {p:"微信",path:"我 → 设置 → 个人信息与权限 → 个人信息浏览与导出 → 导出个人信息（发邮箱，72 小时内下载）"},
+  {p:"B 站",path:"我的 → 设置 → 个人信息收集清单 → 个人信息下载"},
+  {p:"淘宝",path:"我的淘宝 → 设置 → 隐私 → 个人数据下载"},
+  {p:"抖音",path:"我 → ≡ → 设置 → 隐私设置 → 个人信息与权限 → 导出个人数据（加密 ZIP，解压密码见短信）"},
+  {p:"小红书",path:"设置与隐私 → 账户设置 → 数据管理 → 个人信息导出（每月一次，邮箱收链接）"},
+  {p:"知乎",path:"我的 → 设置 → 隐私中心 → 个人信息下载 → 联系知乎小管家申请"},
+  {p:"Excel 类",path:"平台导出的 .xlsx 先用 Excel / WPS 另存为「CSV UTF-8」，再拖进本页"}
+];
+
 const SHIELD_ITEMS = [
   {id:"s1", group:"a", title:"关闭抖音个性化推荐", desc:"我 → 设置 → 隐私设置 → 个性化推荐，关闭。同时清一次推荐历史。", url:"https://www.douyin.com/", urlLabel:"打开抖音网页版", copy:"我 → 设置 → 隐私设置 → 个性化推荐"},
   {id:"s2", group:"a", title:"关闭小红书个性化广告", desc:"我 → 设置 → 隐私设置 → 个性化广告管理 / 广告兴趣标签，清空或关闭。", url:"https://www.xiaohongshu.com/", urlLabel:"打开小红书", copy:"我 → 设置 → 隐私设置 → 个性化广告管理"},
@@ -586,7 +636,8 @@ function freshState(){
     ammoSeed:1,
     evo:{weights:{}, evolved:{}, history:[]},
     snapshots:[],
-    effectDims:["tech","game","study","food"]
+    effectDims:["tech","game","study","food"],
+    reminder:{enabled:false,time:"20:00",channels:[],lastSent:""}
   };
 }
 let state = loadState();
@@ -599,6 +650,8 @@ function loadState(){
     if(!merged.evo||typeof merged.evo!=="object")merged.evo={weights:{},evolved:{},history:[]};
     if(!Array.isArray(merged.snapshots))merged.snapshots=[];
     if(!Array.isArray(merged.effectDims))merged.effectDims=["tech","game","study","food"];
+    if(!merged.reminder||typeof merged.reminder!=="object")merged.reminder={enabled:false,time:"20:00",channels:[],lastSent:""};
+    if(!Array.isArray(merged.reminder.channels))merged.reminder.channels=[];
     return merged;
   }catch(e){ return freshState(); }
 }
@@ -1035,6 +1088,19 @@ $("#btn-add-snapshot").addEventListener("click",()=>{takeSnapshot(true);toast("�
 /* ---------------- official data import ---------------- */
 let importPreview=null;
 const SKIP_IMPORT_KEYS=new Set(["time","titleUrl","header","activityControls","products","details","id","url","thumbnailUrl","imageFile","audioFiles","locationInfo"]);
+function renderDataSources(){
+  const el=$("#source-list"); if(!el)return;
+  el.innerHTML=DATA_SOURCES.map((s,i)=>`<div class="source-row">
+    <span class="platform">${s.p}</span><span class="path">${s.path}</span>
+    <span>${s.url?`<a class="btn sm" href="${s.url}" target="_blank" rel="noopener noreferrer">打开 ↗</a>`:""}
+      <button class="btn sm" data-src-copy="${i}">复制</button></span>
+  </div>`).join("");
+  $$("[data-src-copy]").forEach(b=>b.addEventListener("click",async()=>{
+    const txt=DATA_SOURCES[+b.dataset.srcCopy].path;
+    try{await navigator.clipboard.writeText(txt);toast("路径已复制");}
+    catch(e){const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("路径已复制");}
+  }));
+}
 function pushImportText(value,out){
   const t=String(value).trim();
   if(t.length<2||t.length>400)return;
@@ -1227,6 +1293,106 @@ $("#btn-reset").addEventListener("click",()=>{
   state=freshState(); saveState(); renderAll(); takeSnapshot(false); toast("已重置");
 });
 
+/* ---------------- optional daily reminder ---------------- */
+function reminderText(){
+  let pending=0;
+  if(state.plan)state.plan.forEach(day=>day.tasks.forEach((_,i)=>{if(!state.planChecks[day.day+"-"+i])pending++;}));
+  return `反骨 REWIRE：今天还有 ${pending} 个驯化任务没打卡。打开应用，花 3 分钟完成主动搜索和负反馈。`;
+}
+function renderReminder(){
+  if(!$("#reminder-toggle"))return;
+  const r=state.reminder;
+  $("#reminder-toggle").checked=!!r.enabled;
+  $("#reminder-time").value=r.time||"20:00";
+  $$("[data-channel]").forEach(c=>c.checked=r.channels.includes(c.dataset.channel));
+  const perm=("Notification" in window)?Notification.permission:"unsupported";
+  const permText=perm==="granted"?"已授权":perm==="denied"?"已拒绝":perm==="default"?"未授权":"不支持";
+  $("#reminder-status").textContent=`渠道：${r.channels.length?r.channels.join(" / "):"未选择"} · 通知权限：${permText} · 后台同步：${("serviceWorker" in navigator)?"需浏览器支持":"不支持"}。提醒时间到时，页面打开且启用通知才会弹出；关掉页面时需已安装 PWA 且浏览器支持 Periodic Sync。`;
+}
+function syncReminderFromUI(){
+  state.reminder.enabled=$("#reminder-toggle").checked;
+  state.reminder.time=$("#reminder-time").value||"20:00";
+  state.reminder.channels=$$("[data-channel]").filter(c=>c.checked).map(c=>c.dataset.channel);
+  saveState(); renderReminder();
+}
+async function enableNotifications(){
+  if(!("Notification" in window)){toast("浏览器不支持系统通知");return false;}
+  if(Notification.permission==="default"){
+    const result=await Notification.requestPermission();
+    if(result!=="granted"){toast("未授权系统通知");return false;}
+  }
+  if(Notification.permission!=="granted"){toast("通知权限未开启，去浏览器设置里改");return false;}
+  if("serviceWorker" in navigator){
+    const reg=await navigator.serviceWorker.ready.catch(()=>null);
+    if(reg&&"periodicSync" in reg){
+      try{await reg.periodicSync.register("rewire-daily-reminder",{minInterval:24*60*60*1000});}catch(e){}
+    }
+  }
+  return true;
+}
+async function showReminder(){
+  const title="反骨 REWIRE · 今日驯化提醒";
+  const body=reminderText();
+  if(!("Notification" in window)||Notification.permission!=="granted"){toast("系统通知未授权，请先在浏览器允许通知");return false;}
+  if("serviceWorker" in navigator){
+    const reg=await navigator.serviceWorker.ready.catch(()=>null);
+    if(reg){
+      try{await reg.showNotification(title,{body,icon:"./icon-192.png",tag:"rewire-daily-reminder",data:{url:"./index.html"}});toast("测试提醒已发送");return true;}catch(e){}
+    }
+  }
+  try{new Notification(title,{body});toast("测试提醒已发送");return true;}catch(e){toast("当前浏览器无法弹出通知");return false;}
+}
+function buildICS(){
+  const r=state.reminder;
+  const now=new Date();
+  const date=now.getFullYear()+String(now.getMonth()+1).padStart(2,"0")+String(now.getDate()).padStart(2,"0");
+  const hhmm=(r.time||"20:00").replace(":","");
+  const stamp=now.toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
+  return [
+    "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//REWIRE//Daily Reminder//CN","CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT","UID:rewire-"+(r.time||"2000")+"-"+date+"@local","DTSTAMP:"+stamp,
+    "DTSTART:"+date+"T"+hhmm+"00","DURATION:PT15M","RRULE:FREQ=DAILY;COUNT="+state.planLength,
+    "SUMMARY:反骨 REWIRE · 今日驯化打卡","DESCRIPTION:打开应用完成主动搜索、完播互动与负反馈任务","END:VEVENT","END:VCALENDAR"
+  ].join("\r\n");
+}
+$("#reminder-toggle").addEventListener("change",async()=>{
+  const wants=$("#reminder-toggle").checked;
+  if(wants&&$$("[data-channel]").some(c=>c.dataset.channel==="notification"&&c.checked))await enableNotifications();
+  syncReminderFromUI(); toast(wants?"每日提醒已开启":"每日提醒已关闭");
+});
+$("#reminder-time").addEventListener("change",syncReminderFromUI);
+$$("[data-channel]").forEach(c=>c.addEventListener("change",async()=>{
+  if(c.checked&&c.dataset.channel==="notification")await enableNotifications();
+  syncReminderFromUI();
+}));
+$("#btn-test-reminder").addEventListener("click",()=>showReminder());
+$("#btn-download-ics").addEventListener("click",()=>{
+  syncReminderFromUI();
+  const blob=new Blob([buildICS()],{type:"text/calendar;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="rewire-daily-reminder.ics";a.click();URL.revokeObjectURL(a.href);
+  toast("日历文件已下载，导入手机/电脑日历即可");
+});
+$("#btn-mail-reminder").addEventListener("click",()=>{
+  const subject=encodeURIComponent("反骨 REWIRE · 今日驯化提醒");
+  const body=encodeURIComponent(reminderText()+"\n\n打开应用："+location.href);
+  window.location.href="mailto:?subject="+subject+"&body="+body;
+});
+$("#btn-copy-reminder").addEventListener("click",async()=>{
+  const txt=reminderText();
+  try{await navigator.clipboard.writeText(txt);toast("提醒文案已复制");}
+  catch(e){const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("提醒文案已复制");}
+});
+setInterval(()=>{
+  const r=state.reminder;
+  if(!r.enabled||!r.channels.includes("notification"))return;
+  const d=new Date();
+  const hm=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+  if(hm===r.time&&r.lastSent!==todayStr()){
+    r.lastSent=todayStr(); saveState(); showReminder();
+  }
+},30000);
+
 /* ---------------- pwa ---------------- */
 let deferredPrompt=null;
 window.addEventListener("beforeinstallprompt",e=>{
@@ -1249,7 +1415,7 @@ if("serviceWorker" in navigator && location.protocol!=="file:"){
 /* ---------------- boot ---------------- */
 function renderAll(){
   renderProfile(); renderTarget(); renderRadars(); dimBars($("#dash-dims"));
-  renderPlan(); generateAmmo(); renderShield(); renderStats(); renderEffect(); renderData();
+  renderPlan(); renderReminder(); generateAmmo(); renderShield(); renderStats(); renderEffect(); renderData(); renderDataSources();
   $$("[data-ammo]").forEach(b=>b.classList.toggle("on",b.dataset.ammo===state.ammoType));
 }
 if(!state.plan) buildPlan(false);
