@@ -205,6 +205,17 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
 .source-row:first-of-type{border-top:0;margin-top:8px}
 .source-row .platform{width:64px;flex:0 0 auto;font-weight:700}
 .source-row .path{flex:1;color:var(--muted)}
+.agg-box{border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface-2);margin:12px 0}
+.agg-dim{display:grid;grid-template-columns:52px 1fr 112px;align-items:center;gap:10px;font-size:12px;margin:5px 0}
+.agg-dim .bar{height:7px;background:var(--surface);border-radius:5px;overflow:hidden}
+.agg-dim .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);border-radius:5px}
+.agg-dim .val{text-align:right;font-family:ui-monospace,monospace;color:var(--muted)}
+.agg-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border);font-size:12px}
+.agg-row:first-child{border-top:0}
+.agg-row .who{font-weight:700;min-width:70px}
+.agg-row .meta{color:var(--muted);flex:1}
+.agg-warn{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:8px;padding:8px 10px;font-size:12px;margin:8px 0}
+.agg-empty{font-size:12px;color:var(--muted);padding:10px 0}
 .reminder-grid{display:grid;grid-template-columns:160px 1fr;gap:14px;align-items:center;margin:14px 0}
 .reminder-channels{display:flex;gap:8px;flex-wrap:wrap}
 .reminder-channels label{display:flex;align-items:center;gap:5px;font-size:12px;padding:5px 9px;border:1px solid var(--border);border-radius:8px;cursor:pointer}
@@ -254,7 +265,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">反</div>
-      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.4</div></div>
+      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.5</div></div>
     </div>
     <div class="nav-title">工作台</div>
     <nav class="nav" id="nav">
@@ -347,11 +358,27 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
           <button class="btn sm" id="btn-demo-import">用示例数据试一下</button>
           <button class="btn ghost sm" id="btn-clear-import">清除预览</button>
         </div>
+        <div class="btn-row" style="margin-top:8px">
+          <label class="small muted" for="import-platform">来源平台</label>
+          <select id="import-platform" style="padding:5px 8px;border:1px solid var(--border);border-radius:7px;background:var(--surface);color:var(--text);font-size:12px">
+            <option value="">自动识别</option>
+            <option>Google</option><option>YouTube</option><option>TikTok</option>
+            <option>微信</option><option>B 站</option><option>淘宝</option>
+            <option>抖音</option><option>小红书</option><option>知乎</option><option>通用</option>
+          </select>
+          <button class="btn sm" id="btn-save-import">存入多源档案</button>
+        </div>
         <details class="source-list">
           <summary>官方数据从哪拿？点开看 10 个渠道与路径</summary>
           <div id="source-list"></div>
         </details>
         <div id="import-result" style="margin-top:14px"></div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>多源档案（本地聚合）</h2><span class="pill indigo" id="agg-cover">0 / 9 渠道</span></div>
+        <p class="small muted">把不同平台的导出结果存档，按唯一文本数加权合成一张画像；文本指纹只在本地比对，不保存原文。跨源重复会被标出，避免把同一个兴趣当两个证据。</p>
+        <div id="agg-result"></div>
       </div>
 
       <div class="card" style="margin-top:16px">
@@ -635,6 +662,7 @@ function freshState(){
     ammoType:"search",
     ammoSeed:1,
     evo:{weights:{}, evolved:{}, history:[]},
+    imports:[],
     snapshots:[],
     effectDims:["tech","game","study","food"],
     reminder:{enabled:false,time:"20:00",channels:[],lastSent:""}
@@ -648,6 +676,7 @@ function loadState(){
     const s = JSON.parse(raw);
     const merged = Object.assign(freshState(), s);
     if(!merged.evo||typeof merged.evo!=="object")merged.evo={weights:{},evolved:{},history:[]};
+    if(!Array.isArray(merged.imports))merged.imports=[];
     if(!Array.isArray(merged.snapshots))merged.snapshots=[];
     if(!Array.isArray(merged.effectDims))merged.effectDims=["tech","game","study","food"];
     if(!merged.reminder||typeof merged.reminder!=="object")merged.reminder={enabled:false,time:"20:00",channels:[],lastSent:""};
@@ -1014,9 +1043,9 @@ function closeness(s){
   const gap=DIMS.reduce((acc,d)=>acc+Math.abs(s.target[d.key]-s.current[d.key]),0)/8;
   return Math.max(0,Math.round(100-gap));
 }
-function takeSnapshot(force){
+function takeSnapshot(force,source){
   const date=todayStr();
-  const snap={date,current:Object.assign({},state.current),target:Object.assign({},state.target),progress:planPct(),at:Date.now()};
+  const snap={date,current:Object.assign({},state.current),target:Object.assign({},state.target),progress:planPct(),at:Date.now(),source:source||"手动"};
   const idx=state.snapshots.findIndex(s=>s.date===date);
   if(idx>=0){ if(!force){state.snapshots[idx].progress=snap.progress;saveState();renderEffect();return false;} state.snapshots[idx]=snap; }
   else state.snapshots.push(snap);
@@ -1072,11 +1101,11 @@ function renderEffect(){
 
   const rows=snaps.slice().reverse().slice(0,14).map(s=>{
     const top=DIMS.slice().sort((a,b)=>s.current[b.key]-s.current[a.key]).slice(0,3).map(d=>d.name).join("、");
-    return `<tr><td>${s.date}</td><td>${closeness(s)} / 100</td><td>${s.progress}%</td><td>${top}</td>
+    return `<tr><td>${s.date}</td><td>${closeness(s)} / 100</td><td>${s.progress}%</td><td>${s.source||"手动"}</td><td>${top}</td>
       <td><button class="btn ghost sm" data-del-snap="${s.date}">删除</button></td></tr>`;
   }).join("");
   $("#snapshot-table").innerHTML=snaps.length
-    ?`<thead><tr><th>日期</th><th>接近度</th><th>计划完成</th><th>高权重标签</th><th></th></tr></thead><tbody>${rows}</tbody>`
+    ?`<thead><tr><th>日期</th><th>接近度</th><th>计划完成</th><th>来源</th><th>高权重标签</th><th></th></tr></thead><tbody>${rows}</tbody>`
     :`<tbody><tr><td class="muted">暂无记录</td></tr></tbody>`;
   $$("[data-del-snap]").forEach(b=>b.addEventListener("click",()=>{
     state.snapshots=state.snapshots.filter(s=>s.date!==b.dataset.delSnap);
@@ -1153,6 +1182,11 @@ function textsFromFile(name,text){
   if(ext==="html"||ext==="htm")return parseImportHTML(text);
   return text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>2);
 }
+function hashText(s){
+  let h=2166136261;
+  for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619);}
+  return (h>>>0).toString(36);
+}
 function analyzeImportTexts(texts){
   const counts={}; DIMS.forEach(d=>counts[d.key]=0);
   const uniq=Array.from(new Set(texts.map(t=>t.toLowerCase()))).slice(0,12000);
@@ -1164,7 +1198,7 @@ function analyzeImportTexts(texts){
   const max=Math.max.apply(null,DIMS.map(d=>Math.log1p(counts[d.key])));
   const scores={};
   DIMS.forEach(d=>{const c=counts[d.key];scores[d.key]=c?Math.round(10+90*Math.log1p(c)/max):5;});
-  return {records:texts.length,uniq:uniq.length,hits,counts,scores};
+  return {records:texts.length,uniq:uniq.length,hits,counts,scores,hashes:uniq.map(hashText)};
 }
 function renderImportResult(){
   const el=$("#import-result"); if(!el)return;
@@ -1179,12 +1213,80 @@ function renderImportResult(){
       <button class="btn sm" id="btn-apply-import-target">设为目标画像</button>
     </div></div>`;
   $("#btn-apply-import").addEventListener("click",()=>{
-    state.current=Object.assign({},r.scores); saveState(); syncProfile(); takeSnapshot(true); toast("已按导出数据更新当前画像");
+    state.current=Object.assign({},r.scores); saveState(); syncProfile(); takeSnapshot(true,"导入·"+importPlatform()); toast("已按导出数据更新当前画像");
   });
   $("#btn-apply-import-target").addEventListener("click",()=>{
     state.target=Object.assign({},r.scores); state.preset="custom"; saveState();
     renderTarget(); renderRadars(); dimBars($("#dash-dims")); dimBars($("#profile-dims")); renderStats(); buildPlan(false); toast("已按导出数据更新目标画像");
   });
+}
+function guessPlatform(names){
+  const n=(names||[]).join(" ").toLowerCase();
+  if(/youtube|watch-history|search-history/.test(n))return "YouTube";
+  if(/takeout|myactivity|google/.test(n))return "Google";
+  if(/tiktok/.test(n))return "TikTok";
+  if(/douyin|抖音/.test(n))return "抖音";
+  if(/wechat|weixin|微信/.test(n))return "微信";
+  if(/bilibili|b站/.test(n))return "B 站";
+  if(/taobao|淘宝/.test(n))return "淘宝";
+  if(/xhs|xiaohongshu|小红书/.test(n))return "小红书";
+  if(/zhihu|知乎/.test(n))return "知乎";
+  return "通用";
+}
+function importPlatform(){return $("#import-platform").value||guessPlatform(importPreview&&importPreview.files);}
+function fmtTime(ts){const d=new Date(ts);return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function aggregateImports(){
+  const list=state.imports; if(!list.length)return null;
+  const seen=new Set(); let dup=0;
+  list.forEach(x=>(x.hashes||[]).forEach(h=>{if(seen.has(h))dup++;else seen.add(h);}));
+  const totalW=list.reduce((s,x)=>s+(x.uniq||0),0)||1;
+  const scores={},spreads={};
+  DIMS.forEach(d=>{
+    scores[d.key]=clamp(list.reduce((s,x)=>s+((x.scores&&x.scores[d.key])||0)*(x.uniq||0),0)/totalW);
+    const vals=list.map(x=>(x.scores&&x.scores[d.key])||0);
+    spreads[d.key]=Math.max.apply(null,vals)-Math.min.apply(null,vals);
+  });
+  const platforms=Array.from(new Set(list.map(x=>x.platform).filter(p=>p&&p!=="通用")));
+  return {scores,spreads,unique:seen.size,dup,platforms,count:list.length};
+}
+function renderMultiSource(){
+  const el=$("#agg-result"); if(!el)return;
+  const agg=aggregateImports();
+  const cover=$("#agg-cover"); if(cover)cover.textContent=(agg?agg.platforms.length:0)+" / 9 渠道";
+  if(!agg){el.innerHTML='<div class="agg-empty">还没有存档。解析数据后点「存入多源档案」。</div>';return;}
+  const conflicts=DIMS.slice().sort((a,b)=>agg.spreads[b.key]-agg.spreads[a.key]).slice(0,3).filter(d=>agg.spreads[d.key]>=30);
+  const warn=conflicts.length
+    ?`<div class="agg-warn">⚠ 跨源分歧：${conflicts.map(d=>d.name+" "+agg.spreads[d.key]+" 分").join("、")}。单源偏差可能主导结论，建议先补第 ${Math.min(agg.platforms.length+1,9)} 个渠道。</div>`
+    :'<div class="small muted" style="margin:8px 0">各来源分歧不大，可据此制定计划。</div>';
+  const rows=state.imports.slice().reverse().map(x=>`<div class="agg-row">
+      <span class="who">${x.platform}</span>
+      <span class="meta">${fmtTime(x.at)} · ${(x.files||[]).join("、")} · ${x.uniq} 条唯一文本 / ${x.hits} 命中</span>
+      <button class="btn ghost sm" data-del-imp="${x.id}">删除</button></div>`).join("");
+  el.innerHTML=`<div class="agg-box">
+    <div class="card-head"><b>聚合画像</b><span class="pill teal">${agg.count} 份档案 · ${agg.unique} 条唯一文本</span></div>
+    <div class="small muted">跨源重复 ${agg.dup} 条。分数按来源唯一文本数加权，不是简单平均。</div>
+    ${DIMS.map(d=>`<div class="agg-dim"><span>${d.name}</span><span class="bar"><i style="width:${agg.scores[d.key]}%"></i></span><span class="val">${agg.scores[d.key]} <span class="faint">±${agg.spreads[d.key]}</span></span></div>`).join("")}
+    ${warn}
+    <div class="btn-row" style="margin-top:12px">
+      <button class="btn primary sm" id="btn-agg-apply">应用到当前画像</button>
+      <button class="btn sm" id="btn-agg-target">设为目标画像</button>
+      <button class="btn ghost sm" id="btn-agg-clear">清空档案</button>
+    </div></div>
+    <div style="margin-top:12px"><b class="small">档案列表</b>${rows}</div>`;
+  $("#btn-agg-apply").addEventListener("click",()=>{
+    state.current=Object.assign({},agg.scores); saveState(); syncProfile(); takeSnapshot(true,"多源聚合"); toast("已应用聚合画像");
+  });
+  $("#btn-agg-target").addEventListener("click",()=>{
+    state.target=Object.assign({},agg.scores); state.preset="custom"; saveState();
+    renderTarget(); renderRadars(); dimBars($("#dash-dims")); dimBars($("#profile-dims")); renderStats(); buildPlan(false); toast("已把聚合画像设为目标");
+  });
+  $("#btn-agg-clear").addEventListener("click",()=>{
+    if(!confirm("清空全部多源档案？当前画像与快照不受影响。"))return;
+    state.imports=[]; saveState(); renderMultiSource(); toast("档案已清空");
+  });
+  $$("[data-del-imp]").forEach(b=>b.addEventListener("click",()=>{
+    state.imports=state.imports.filter(x=>x.id!==b.dataset.delImp); saveState(); renderMultiSource(); toast("已删除该档案");
+  }));
 }
 async function handleImportFiles(files){
   const texts=[];
@@ -1192,6 +1294,7 @@ async function handleImportFiles(files){
     try{const raw=await f.text(); texts.push.apply(texts,textsFromFile(f.name,raw));}catch(e){}
   }
   importPreview=analyzeImportTexts(texts);
+  if(importPreview)importPreview.files=files.map(f=>f.name||"文件");
   if(!importPreview)toast("没识别到兴趣关键词，换个导出文件试试");
   renderImportResult();
 }
@@ -1223,10 +1326,26 @@ $("#btn-demo-import").addEventListener("click",()=>{
     {header:"YouTube",title:"Watched video: 烘焙入门",time:"2026-11-24T18:00:00Z"}
   ];
   const texts=[]; demo.forEach(o=>collectImportStrings(o,texts,0));
-  importPreview=analyzeImportTexts(texts); renderImportResult(); toast("已用示例数据生成预览");
+  importPreview=analyzeImportTexts(texts);
+  if(importPreview)importPreview.files=["示例数据.json"];
+  renderImportResult(); toast("已用示例数据生成预览");
 });
 $("#btn-clear-import").addEventListener("click",()=>{
   importPreview=null; $("#import-file-list").textContent="尚未选择文件"; renderImportResult(); toast("已清除预览");
+});
+$("#btn-save-import").addEventListener("click",()=>{
+  if(!importPreview){toast("先解析一份导出数据");return;}
+  const r=importPreview, platform=importPlatform();
+  state.imports.push({
+    id:Date.now()+"-"+Math.random().toString(36).slice(2,6),
+    at:Date.now(), platform, files:(r.files||[]).slice(0,8),
+    records:r.records, uniq:r.uniq, hits:r.hits,
+    counts:Object.assign({},r.counts), scores:Object.assign({},r.scores),
+    hashes:(r.hashes||[]).slice(0,3000)
+  });
+  if(state.imports.length>30)state.imports=state.imports.slice(-30);
+  $("#import-platform").value="";
+  saveState(); renderMultiSource(); toast("已存入多源档案：" + platform);
 });
 
 /* ---------------- shield ---------------- */
@@ -1415,7 +1534,7 @@ if("serviceWorker" in navigator && location.protocol!=="file:"){
 /* ---------------- boot ---------------- */
 function renderAll(){
   renderProfile(); renderTarget(); renderRadars(); dimBars($("#dash-dims"));
-  renderPlan(); renderReminder(); generateAmmo(); renderShield(); renderStats(); renderEffect(); renderData(); renderDataSources();
+  renderPlan(); renderReminder(); generateAmmo(); renderShield(); renderStats(); renderEffect(); renderData(); renderDataSources(); renderMultiSource();
   $$("[data-ammo]").forEach(b=>b.classList.toggle("on",b.dataset.ammo===state.ammoType));
 }
 if(!state.plan) buildPlan(false);
