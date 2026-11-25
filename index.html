@@ -194,12 +194,15 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
 .snapshot-table th{font-size:11px;color:var(--muted);font-weight:650}
 
 /* ---------- shield ---------- */
-.shield-item{display:flex;gap:12px;padding:12px 0;border-top:1px solid var(--border)}
+.shield-item{display:flex;flex-wrap:wrap;gap:12px;padding:12px 0;border-top:1px solid var(--border)}
 .shield-item:first-child{border-top:0}
 .shield-item input{margin-top:3px;width:16px;height:16px;accent-color:var(--teal)}
 .shield-item b{font-size:13px}
 .shield-item.done b{text-decoration:line-through;color:var(--faint)}
 .shield-item p{margin:2px 0 0;font-size:12px;color:var(--muted)}
+.shield-actions{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 0 28px}
+.shield-item label{display:flex;gap:12px;flex:1 1 240px;cursor:pointer}
+.shield-actions .btn{font-size:11px;padding:4px 9px}
 
 /* ---------- misc ---------- */
 .note{font-size:12px;color:var(--muted);background:var(--amber-soft);border:1px solid #f6dfb5;
@@ -232,7 +235,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">反</div>
-      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.1</div></div>
+      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.2</div></div>
     </div>
     <div class="nav-title">工作台</div>
     <nav class="nav" id="nav">
@@ -245,7 +248,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
       <button class="nav-btn" data-page="shield"><span class="ico">⛨</span>隐私盾清单</button>
       <button class="nav-btn" data-page="data"><span class="ico">⌘</span>数据管理</button>
     </nav>
-    <div class="side-foot"><span class="local-badge">● 本地运行</span><br>所有数据只存在此浏览器，不上传。</div>
+    <div class="side-foot"><span class="local-badge">● 本地运行</span><br><span id="offline-badge" class="local-badge" style="display:none;margin-top:6px">● 可离线使用</span><br>所有数据只存在此浏览器，不上传。</div>
   </aside>
 
   <main class="main">
@@ -258,6 +261,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
         <div class="hero-actions">
           <button class="btn primary" data-go="profile">开始重塑 →</button>
           <button class="btn" data-go="plan">查看我的计划</button>
+          <button class="btn" id="btn-install" style="display:none">安装到桌面</button>
         </div>
         <div class="stat-row">
           <div class="stat"><b id="s-days">7</b><span>天驯化周期</span></div>
@@ -518,18 +522,18 @@ const TAGS = {
 };
 
 const SHIELD_ITEMS = [
-  {id:"s1", group:"a", title:"关闭抖音个性化推荐", desc:"我 → 设置 → 隐私设置 → 个性化推荐，关闭。同时清一次推荐历史。"},
-  {id:"s2", group:"a", title:"关闭小红书个性化广告", desc:"我 → 设置 → 隐私设置 → 个性化广告管理 / 广告兴趣标签，清空或关闭。"},
-  {id:"s3", group:"a", title:"B 站清空推荐与搜索历史", desc:"个人中心 → 历史记录，清搜索词；推荐流里对旧标签内容点「不感兴趣」。"},
-  {id:"s4", group:"a", title:"淘宝/京东关闭个性化推荐", desc:"我的 → 设置 → 隐私 → 个性化推荐，关闭；顺手清空浏览足迹。"},
-  {id:"s5", group:"a", title:"微信关闭个性化广告", desc:"我 → 设置 → 个人信息与权限 → 个性化广告管理，关闭。"},
-  {id:"s6", group:"b", title:"重置手机广告标识符", desc:"iOS：设置 → 隐私与安全性 → 跟踪；Android：设置 → 隐私 → 广告 ID → 重置。"},
-  {id:"s7", group:"b", title:"浏览器关闭第三方 Cookie", desc:"Edge/Chrome：设置 → 隐私 → Cookie → 阻止第三方 Cookie。"},
-  {id:"s8", group:"b", title:"收回非必要 App 的定位权限", desc:"只给地图和外卖留「使用时允许」，其余改成「永不」。"},
-  {id:"s9", group:"b", title:"建立场景分离账号/配置文件", desc:"学习资料与娱乐刷流用不同浏览器配置文件或不同账号，切断跨场景画像。"},
-  {id:"s10", group:"b", title:"换一个不追踪的搜索入口", desc:"把默认搜索换成 DuckDuckGo / 国内可用时再选无个性化结果的入口。"},
-  {id:"s11", group:"b", title:"退订营销短信与兴趣推送", desc:"短信里回 T/N 退订，App 推送设置里关掉「猜你喜欢」类通知。"},
-  {id:"s12", group:"b", title:"季度复盘一次画像", desc:"每三个月回来重跑一次诊断，看推荐流是否真的变了。"}
+  {id:"s1", group:"a", title:"关闭抖音个性化推荐", desc:"我 → 设置 → 隐私设置 → 个性化推荐，关闭。同时清一次推荐历史。", url:"https://www.douyin.com/", urlLabel:"打开抖音网页版", copy:"我 → 设置 → 隐私设置 → 个性化推荐"},
+  {id:"s2", group:"a", title:"关闭小红书个性化广告", desc:"我 → 设置 → 隐私设置 → 个性化广告管理 / 广告兴趣标签，清空或关闭。", url:"https://www.xiaohongshu.com/", urlLabel:"打开小红书", copy:"我 → 设置 → 隐私设置 → 个性化广告管理"},
+  {id:"s3", group:"a", title:"B 站清空推荐与搜索历史", desc:"个人中心 → 历史记录，清搜索词；推荐流里对旧标签内容点「不感兴趣」。", url:"https://www.bilibili.com/", urlLabel:"打开 B 站", copy:"个人中心 → 历史记录 → 清空搜索历史"},
+  {id:"s4", group:"a", title:"淘宝/京东关闭个性化推荐", desc:"我的 → 设置 → 隐私 → 个性化推荐，关闭；顺手清空浏览足迹。", url:"https://www.taobao.com/", urlLabel:"打开淘宝", copy:"我的 → 设置 → 隐私 → 个性化推荐"},
+  {id:"s5", group:"a", title:"微信关闭个性化广告", desc:"我 → 设置 → 个人信息与权限 → 个性化广告管理，关闭。", url:"https://weixin.qq.com/", urlLabel:"微信官网", copy:"我 → 设置 → 个人信息与权限 → 个性化广告管理"},
+  {id:"s6", group:"b", title:"重置手机广告标识符", desc:"iOS：设置 → 隐私与安全性 → 跟踪；Android：设置 → 隐私 → 广告 ID → 重置。", copy:"iOS：设置 → 隐私与安全性 → 跟踪\nAndroid：设置 → 隐私 → 广告 ID → 重置"},
+  {id:"s7", group:"b", title:"浏览器关闭第三方 Cookie", desc:"Edge/Chrome：设置 → 隐私 → Cookie → 阻止第三方 Cookie。", copy:"edge://settings/privacy\nchrome://settings/cookies"},
+  {id:"s8", group:"b", title:"收回非必要 App 的定位权限", desc:"只给地图和外卖留「使用时允许」，其余改成「永不」。", copy:"只给地图和外卖：使用时允许\n其余：永不"},
+  {id:"s9", group:"b", title:"建立场景分离账号/配置文件", desc:"学习资料与娱乐刷流用不同浏览器配置文件或不同账号，切断跨场景画像。", url:"https://addons.mozilla.org/zh-CN/firefox/addon/multi-account-containers/", urlLabel:"获取容器插件"},
+  {id:"s10", group:"b", title:"换一个不追踪的搜索入口", desc:"把默认搜索换成 DuckDuckGo / 国内可用时再选无个性化结果的入口。", url:"https://duckduckgo.com/", urlLabel:"打开 DuckDuckGo"},
+  {id:"s11", group:"b", title:"退订营销短信与兴趣推送", desc:"短信里回 T/N 退订，App 推送设置里关掉「猜你喜欢」类通知。", copy:"短信回 T/N 退订\nApp 推送设置 → 关闭「猜你喜欢」"},
+  {id:"s12", group:"b", title:"季度复盘一次画像", desc:"每三个月回来重跑一次诊断，看推荐流是否真的变了。", copy:"重新做八维诊断 → 对比效果追踪曲线"}
 ];
 
 const DEFAULT_CURRENT = {tech:62,money:24,game:70,sport:20,art:30,trip:25,food:58,study:38};
@@ -1001,12 +1005,23 @@ function renderShield(){
     const el=g==="a"?$("#shield-list-a"):$("#shield-list-b");
     el.innerHTML=SHIELD_ITEMS.filter(i=>i.group===g).map(i=>{
       const on=!!state.shield[i.id];
-      return `<label class="shield-item ${on?"done":""}"><input type="checkbox" data-shield="${i.id}" ${on?"checked":""}>
-        <div><b>${i.title}</b><p>${i.desc}</p></div></label>`;
+      const actions=[];
+      if(i.url) actions.push(`<a class="btn sm" href="${i.url}" target="_blank" rel="noopener noreferrer">${i.urlLabel||"打开平台"} ↗</a>`);
+      if(i.copy) actions.push(`<button class="btn sm" data-copy="${escapeHtml(i.copy)}">复制路径</button>`);
+      return `<div class="shield-item ${on?"done":""}">
+        <label><input type="checkbox" data-shield="${i.id}" ${on?"checked":""}>
+          <div><b>${i.title}</b><p>${i.desc}</p></div></label>
+        ${actions.length?`<div class="shield-actions">${actions.join("")}</div>`:""}
+      </div>`;
     }).join("");
   });
   $$("[data-shield]").forEach(c=>c.addEventListener("change",e=>{
     state.shield[e.target.dataset.shield]=e.target.checked; saveState(); renderShield();
+  }));
+  $$("[data-copy]").forEach(b=>b.addEventListener("click",async()=>{
+    const txt=b.dataset.copy;
+    try{await navigator.clipboard.writeText(txt);toast("路径已复制");}
+    catch(err){const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();toast("路径已复制");}
   }));
   const done=SHIELD_ITEMS.filter(i=>state.shield[i.id]).length;
   $("#shield-count").textContent=`${done} / ${SHIELD_ITEMS.length}`;
@@ -1047,6 +1062,25 @@ $("#btn-reset").addEventListener("click",()=>{
   if(!confirm("确定清空全部本地数据？此操作不可撤销。"))return;
   state=freshState(); saveState(); renderAll(); takeSnapshot(false); toast("已重置");
 });
+
+/* ---------------- pwa ---------------- */
+let deferredPrompt=null;
+window.addEventListener("beforeinstallprompt",e=>{
+  e.preventDefault(); deferredPrompt=e;
+  const b=$("#btn-install"); if(b)b.style.display="inline-flex";
+});
+$("#btn-install").addEventListener("click",async()=>{
+  if(!deferredPrompt){toast("请用浏览器菜单安装到桌面");return;}
+  deferredPrompt.prompt();
+  const choice=await deferredPrompt.userChoice;
+  deferredPrompt=null; $("#btn-install").style.display="none";
+  toast(choice.outcome==="accepted"?"已安装到桌面":"已取消");
+});
+if("serviceWorker" in navigator && location.protocol!=="file:"){
+  navigator.serviceWorker.register("./sw.js")
+    .then(()=>{const b=$("#offline-badge");if(b)b.style.display="inline";})
+    .catch(()=>{});
+}
 
 /* ---------------- boot ---------------- */
 function renderAll(){

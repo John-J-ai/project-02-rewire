@@ -1,0 +1,16 @@
+{
+  "name": "反骨 REWIRE · 互联网人格重塑实验室",
+  "short_name": "反骨 REWIRE",
+  "description": "本地反大数据工具：七天真人格驯化计划、查询演化引擎与效果追踪。",
+  "lang": "zh-CN",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fb",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "./icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "./icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
