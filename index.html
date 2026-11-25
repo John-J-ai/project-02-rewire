@@ -192,6 +192,13 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
 .snapshot-table{width:100%;border-collapse:collapse;font-size:12px}
 .snapshot-table th,.snapshot-table td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--border)}
 .snapshot-table th{font-size:11px;color:var(--muted);font-weight:650}
+.drop-zone{border:1px dashed var(--border);border-radius:12px;padding:22px;text-align:center;background:var(--surface-2);transition:.15s}
+.drop-zone.over{border-color:var(--accent);background:var(--accent-soft)}
+.link-btn{color:var(--accent);font-weight:700;cursor:pointer;text-decoration:underline}
+.import-dim{display:grid;grid-template-columns:40px 1fr 90px;align-items:center;gap:10px;font-size:12px;margin:6px 0}
+.import-dim .bar{height:7px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.import-dim .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);border-radius:5px}
+.import-dim .val{text-align:right;font-family:ui-monospace,monospace;color:var(--muted)}
 
 /* ---------- shield ---------- */
 .shield-item{display:flex;flex-wrap:wrap;gap:12px;padding:12px 0;border-top:1px solid var(--border)}
@@ -235,7 +242,7 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
   <aside class="sidebar">
     <div class="brand">
       <div class="brand-mark">反</div>
-      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.2</div></div>
+      <div><div class="brand-name">反骨 REWIRE</div><div class="brand-sub">PERSONA LAB · v1.3</div></div>
     </div>
     <div class="nav-title">工作台</div>
     <nav class="nav" id="nav">
@@ -316,6 +323,21 @@ input[type=range]{width:100%;accent-color:var(--accent);height:5px}
           <div id="profile-risk" class="grid" style="gap:8px"></div>
         </div>
       </div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-head"><h2>从官方导出数据诊断</h2><span class="pill teal">本地解析 · 不上传</span></div>
+        <p class="small muted">支持 Google Takeout「我的活动」JSON、YouTube <span class="mono">watch-history.json / .html</span>，以及通用 JSON / CSV / TXT。从压缩包里解压出文件后拖进来或多选。</p>
+        <div class="drop-zone" id="drop-zone">
+          <div>把导出文件拖到这里，或 <label class="link-btn" for="import-data-file">选择文件</label></div>
+          <input type="file" id="import-data-file" accept=".json,.html,.htm,.csv,.txt" multiple hidden>
+          <div class="small faint" id="import-file-list" style="margin-top:6px">尚未选择文件</div>
+        </div>
+        <div class="btn-row" style="margin-top:12px">
+          <button class="btn sm" id="btn-demo-import">用示例数据试一下</button>
+          <button class="btn ghost sm" id="btn-clear-import">清除预览</button>
+        </div>
+        <div id="import-result" style="margin-top:14px"></div>
+      </div>
+
       <div class="card" style="margin-top:16px">
         <div class="card-head"><h2>画像可视化</h2><span class="small muted">绿色刻度 = 目标位置</span></div>
         <div class="radar-wrap"><div id="radar-profile"></div><div class="dim-list" id="profile-dims"></div></div>
@@ -519,6 +541,17 @@ const TAGS = {
   trip:["城市漫步","自然徒步","文化旅行","轻装出行","公共交通","在地生活"],
   food:["家庭烹饪","精品咖啡","烘焙","时令食材","街头美食","饮食健康"],
   study:["深度工作","语言学习","知识管理","学术写作","技能树","复盘"]
+};
+
+const IMPORT_LEXICON = {
+  tech:["python","javascript","java ","linux","git","github","ai ","ai工具","大模型","机器学习","编程","代码","开源","数据库","sql","前端","后端","算法","api","终端","键盘","显卡","电脑","software","developer","coding","programming"],
+  money:["基金","股票","财报","投资","理财","利率","通胀","复利","记账","资产","经济","金融","消费","价格","省钱","fund","invest","finance","stock","budget","money"],
+  game:["游戏","电竞","steam","显卡","主机","switch","playstation","xbox","手游","崩坏","原神","王者","英雄联盟","像素","攻略","gaming","game","esports"],
+  sport:["健身","跑步","篮球","足球","瑜伽","训练","蛋白","肌肉","徒步","游泳","骑行","拉伸","睡眠","运动","workout","fitness","running","gym","sport"],
+  art:["电影","摄影","书单","读书","音乐","画展","美术","手账","设计","色彩","文学","诗","black","film","photo","music","art","book","design","artist"],
+  trip:["旅行","旅游","攻略","机票","酒店","青旅","路线","城市","海岛","博物馆","出行","行李","高铁","火车","travel","trip","hotel","flight","city","museum"],
+  food:["菜谱","做法","咖啡","烘焙","美食","探店","食材","减脂餐","小吃","酱料","烹饪","奶茶","早餐","晚餐","food","recipe","coffee","baking","restaurant","cook"],
+  study:["学习","考研","英语","单词","论文","笔记","番茄钟","复习","公开课","课程","做题","考试","记忆","效率","自习","study","exam","notes","course","language","paper","learning"]
 };
 
 const SHIELD_ITEMS = [
@@ -998,6 +1031,137 @@ function renderEffect(){
   }));
 }
 $("#btn-add-snapshot").addEventListener("click",()=>{takeSnapshot(true);toast("已记录当前画像");});
+
+/* ---------------- official data import ---------------- */
+let importPreview=null;
+const SKIP_IMPORT_KEYS=new Set(["time","titleUrl","header","activityControls","products","details","id","url","thumbnailUrl","imageFile","audioFiles","locationInfo"]);
+function pushImportText(value,out){
+  const t=String(value).trim();
+  if(t.length<2||t.length>400)return;
+  if(/^https?:\/\//i.test(t)||/^www\./i.test(t))return;
+  if(/^\d{4}[-/]\d{2}[-/]\d{2}/.test(t))return;
+  out.push(t);
+}
+function collectImportStrings(obj,out,depth){
+  if(depth>6||out.length>=20000)return;
+  if(typeof obj==="string"){pushImportText(obj,out);return;}
+  if(Array.isArray(obj)){obj.slice(0,5000).forEach(v=>collectImportStrings(v,out,depth+1));return;}
+  if(!obj||typeof obj!=="object")return;
+  for(const [k,v] of Object.entries(obj)){
+    if(SKIP_IMPORT_KEYS.has(k))continue;
+    if(typeof v==="string"&&/^(title|snippet|query|text|name|label|keyword|searchterm|searchquery)$/i.test(k)){pushImportText(v,out);continue;}
+    collectImportStrings(v,out,depth+1);
+  }
+}
+function parseImportCSV(text){
+  const lines=text.split(/\r?\n/).slice(0,5000);
+  if(!lines.length)return [];
+  const cellsOf=line=>{
+    const cells=[];let cur="",quoted=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"'){if(quoted&&line[i+1]==='"'){cur+='"';i++;}else quoted=!quoted;}
+      else if(c===","&&!quoted){cells.push(cur.trim());cur="";}
+      else cur+=c;
+    }
+    cells.push(cur.trim());return cells;
+  };
+  const head=cellsOf(lines[0]);
+  const idx=head.findIndex(h=>/query|text|title|name|keyword|内容|标题|搜索/i.test(h));
+  return lines.slice(1).map(l=>{const c=cellsOf(l);return (idx>=0?c[idx]:c[0])||"";}).filter(Boolean);
+}
+function parseImportHTML(html){
+  const doc=new DOMParser().parseFromString(html,"text/html");
+  doc.querySelectorAll("script,style").forEach(n=>n.remove());
+  const lines=(doc.body.innerText||doc.body.textContent||"").split(/\r?\n/)
+    .map(x=>x.trim()).filter(x=>x.length>3&&!/^\d{4}[-/]/.test(x))
+    .filter(x=>!/^(YouTube|Search|Chrome|Maps|Google Play)$/i.test(x));
+  return lines.slice(0,20000);
+}
+function textsFromFile(name,text){
+  const ext=name.split(".").pop().toLowerCase();
+  if(ext==="json"){
+    try{const out=[];collectImportStrings(JSON.parse(text),out,0);return out;}catch(e){return [];}
+  }
+  if(ext==="csv")return parseImportCSV(text);
+  if(ext==="html"||ext==="htm")return parseImportHTML(text);
+  return text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>2);
+}
+function analyzeImportTexts(texts){
+  const counts={}; DIMS.forEach(d=>counts[d.key]=0);
+  const uniq=Array.from(new Set(texts.map(t=>t.toLowerCase()))).slice(0,12000);
+  uniq.forEach(t=>DIMS.forEach(d=>{
+    if(IMPORT_LEXICON[d.key].some(term=>t.includes(term)))counts[d.key]++;
+  }));
+  const hits=DIMS.reduce((s,d)=>s+counts[d.key],0);
+  if(!hits)return null;
+  const max=Math.max.apply(null,DIMS.map(d=>Math.log1p(counts[d.key])));
+  const scores={};
+  DIMS.forEach(d=>{const c=counts[d.key];scores[d.key]=c?Math.round(10+90*Math.log1p(c)/max):5;});
+  return {records:texts.length,uniq:uniq.length,hits,counts,scores};
+}
+function renderImportResult(){
+  const el=$("#import-result"); if(!el)return;
+  if(!importPreview){el.innerHTML="";return;}
+  const r=importPreview;
+  el.innerHTML=`<div class="card flat">
+    <div class="card-head"><b>解析结果</b><span class="pill indigo">${r.records} 条记录 · ${r.hits} 次命中</span></div>
+    <div class="small muted" style="margin-bottom:10px">去重后 ${r.uniq} 条文本。分数按命中频次对数归一化，未命中维度贴 5 分。仅作参考，别照单全收。</div>
+    ${DIMS.map(d=>`<div class="import-dim"><span>${d.name}</span><span class="bar"><i style="width:${r.scores[d.key]}%"></i></span><span class="val">${r.scores[d.key]} <span class="faint">(${r.counts[d.key]})</span></span></div>`).join("")}
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn primary sm" id="btn-apply-import">应用到当前画像</button>
+      <button class="btn sm" id="btn-apply-import-target">设为目标画像</button>
+    </div></div>`;
+  $("#btn-apply-import").addEventListener("click",()=>{
+    state.current=Object.assign({},r.scores); saveState(); syncProfile(); takeSnapshot(true); toast("已按导出数据更新当前画像");
+  });
+  $("#btn-apply-import-target").addEventListener("click",()=>{
+    state.target=Object.assign({},r.scores); state.preset="custom"; saveState();
+    renderTarget(); renderRadars(); dimBars($("#dash-dims")); dimBars($("#profile-dims")); renderStats(); buildPlan(false); toast("已按导出数据更新目标画像");
+  });
+}
+async function handleImportFiles(files){
+  const texts=[];
+  for(const f of files){
+    try{const raw=await f.text(); texts.push.apply(texts,textsFromFile(f.name,raw));}catch(e){}
+  }
+  importPreview=analyzeImportTexts(texts);
+  if(!importPreview)toast("没识别到兴趣关键词，换个导出文件试试");
+  renderImportResult();
+}
+$("#import-data-file").addEventListener("change",e=>{
+  const files=Array.from(e.target.files||[]);
+  $("#import-file-list").textContent=files.length?files.map(f=>f.name).join("、"):"尚未选择文件";
+  if(files.length)handleImportFiles(files);
+  e.target.value="";
+});
+const dropZone=$("#drop-zone");
+dropZone.addEventListener("dragover",e=>{e.preventDefault();dropZone.classList.add("over");});
+dropZone.addEventListener("dragleave",()=>dropZone.classList.remove("over"));
+dropZone.addEventListener("drop",e=>{
+  e.preventDefault();dropZone.classList.remove("over");
+  const files=Array.from(e.dataTransfer.files||[]);
+  if(files.length){$("#import-file-list").textContent=files.map(f=>f.name).join("、");handleImportFiles(files);}
+});
+$("#btn-demo-import").addEventListener("click",()=>{
+  const demo=[
+    {header:"Search",title:"Searched for Python 自动化脚本",time:"2026-11-20T10:12:00Z"},
+    {header:"YouTube",title:"Watched video: 费曼学习法 英语精听",time:"2026-11-20T11:00:00Z"},
+    {header:"Search",title:"Searched for 家常菜做法",time:"2026-11-21T08:00:00Z"},
+    {header:"YouTube",title:"Watched video: 咖啡豆产区 入门",time:"2026-11-21T20:00:00Z"},
+    {header:"Search",title:"Searched for 基金定投入门",time:"2026-11-22T09:00:00Z"},
+    {header:"YouTube",title:"Watched video: Linux 命令行技巧",time:"2026-11-22T13:00:00Z"},
+    {header:"Search",title:"Searched for 居家健身计划",time:"2026-11-23T07:00:00Z"},
+    {header:"YouTube",title:"Watched video: 论文阅读顺序",time:"2026-11-23T15:00:00Z"},
+    {header:"Search",title:"Searched for Python 自动化脚本",time:"2026-11-24T10:00:00Z"},
+    {header:"YouTube",title:"Watched video: 烘焙入门",time:"2026-11-24T18:00:00Z"}
+  ];
+  const texts=[]; demo.forEach(o=>collectImportStrings(o,texts,0));
+  importPreview=analyzeImportTexts(texts); renderImportResult(); toast("已用示例数据生成预览");
+});
+$("#btn-clear-import").addEventListener("click",()=>{
+  importPreview=null; $("#import-file-list").textContent="尚未选择文件"; renderImportResult(); toast("已清除预览");
+});
 
 /* ---------------- shield ---------------- */
 function renderShield(){
